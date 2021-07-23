@@ -17,6 +17,11 @@ RRTPlanner::RRTPlanner(ros::NodeHandle * node)
 
 	// Get RRT parameters from parameter server
 	private_nh_.param<int>("RRT_K", K_, 100);
+	private_nh_.param<float>("RRT_timestep", timestep_, 0.1);
+	private_nh_.param<float>("RRT_vel_max", velMax_, 2);
+
+	// Initialize tree
+	tree_.reset(K_);
 
 	// Subscribe to map topic
 	map_sub_ = nh_->subscribe<const nav_msgs::OccupancyGrid::Ptr &>(
@@ -54,6 +59,12 @@ RRTPlanner::RRTPlanner(ros::NodeHandle * node)
 void RRTPlanner::mapCallback(const nav_msgs::OccupancyGrid::Ptr & msg)
 {
 	map_grid_ = msg;
+
+	// Store map bounds
+	xLimitLower_ = msg->info.origin.position.x;
+	yLimitLower_ = msg->info.origin.position.y;
+	xLimitUpper_ = xLimitLower_ + msg->info.width * msg->info.resolution;
+	yLimitUpper_ = yLimitLower_ + msg->info.height * msg->info.resolution;
 
 	// Build and display the map image
 	buildMapImage();
@@ -132,19 +143,67 @@ void RRTPlanner::plan()
 	// TODO: Fill out this function with the RRT algorithm logic to plan a collision-free
 	//       path through the map starting from the initial pose and ending at the goal pose
 
+	// Iterate to get K vertices
 	for (int k = 0; k < K_; k++) {
 		// Find random state
-
+		Point2D x_rand = randomState();
 
 		// Find nearest neighbour to random state
+		int nearestIndex = tree_.findNearest(x_rand);
+		Point2D nearestNeighbour = tree_.retrieve(nearestIndex);
 
+		// Find control input and new state
+		Point2D u = selectControlInput(x_rand, nearestNeighbour);
+		Point2D x_new = computeNewState(nearestNeighbour, u);
 
 		// Select input to get to random state
-
+		// In simple (x,y) state case, draw a line between and check for intersections
+		bool pathValid = checkCollisionFree(x_rand, nearestNeighbour);
 
 		// Add vertex & edge to tree
-		
+		// Assume quadcopter is holomonic, therefore use x_rand instead of x_new
+		if (pathValid) {
+			tree_.addPoint(x_rand, nearestIndex);
+		}
 	}
+}
+
+Point2D RRTPlanner::randomState()
+{
+	std::default_random_engine generator;
+	
+	// Generate random state within map boundaries
+	std::uniform_real_distribution<float> distributionX(xLimitLower_, xLimitUpper_);
+	float random_x = distributionX(generator);
+
+	std::uniform_real_distribution<float> distributionY(yLimitLower_, yLimitUpper_);
+	float random_y = distributionY(generator);
+
+	return Point2D(random_x, random_y);
+}
+
+bool RRTPlanner::checkCollisionFree(Point2D a, Point2D b)
+{
+	return true;
+}
+
+Point2D RRTPlanner::selectControlInput(Point2D initial, Point2D destination)
+{
+	// Set control input as a straight line from initial to destination
+	Point2D u = destination - initial;
+
+	// Implement a constant velocity model, therefore use max velocity
+	u /= u.norm() * velMax_;
+
+	return u;
+}
+
+Point2D RRTPlanner::computeNewState(Point2D initial, Point2D control_input)
+{
+	// Use first-order euler integration (Sufficient for a first-order system, vel -> pos)
+	Point2D final = initial + control_input * timestep_;
+	
+	return final;
 }
 
 void RRTPlanner::publishPath()
@@ -199,7 +258,7 @@ void RRTPlanner::drawCircle(Point2D & p, int radius, const cv::Scalar & color)
 {
 	cv::circle(
 		*map_,
-		cv::Point(p.y(), map_grid_->info.height - p.x() - 1),
+		cv::Point(p[1], map_grid_->info.height - p[0] - 1),
 		radius,
 		color,
 		-1);
@@ -209,8 +268,8 @@ void RRTPlanner::drawLine(Point2D & p1, Point2D & p2, const cv::Scalar & color, 
 {
 	cv::line(
 		*map_,
-		cv::Point(p2.y(), map_grid_->info.height - p2.x() - 1),
-		cv::Point(p1.y(), map_grid_->info.height - p1.x() - 1),
+		cv::Point(p2[1], map_grid_->info.height - p2[0] - 1),
+		cv::Point(p1[1], map_grid_->info.height - p1[0] - 1),
 		color,
 		thickness);
 }
@@ -218,8 +277,8 @@ void RRTPlanner::drawLine(Point2D & p1, Point2D & p2, const cv::Scalar & color, 
 inline geometry_msgs::PoseStamped RRTPlanner::pointToPose(const Point2D & p)
 {
 	geometry_msgs::PoseStamped pose;
-	pose.pose.position.x = p.y() * map_grid_->info.resolution;
-	pose.pose.position.y = p.x() * map_grid_->info.resolution;
+	pose.pose.position.x = p[1] * map_grid_->info.resolution;
+	pose.pose.position.y = p[0] * map_grid_->info.resolution;
 	pose.header.stamp = ros::Time::now();
 	pose.header.frame_id = map_grid_->header.frame_id;
 	return pose;
@@ -227,8 +286,8 @@ inline geometry_msgs::PoseStamped RRTPlanner::pointToPose(const Point2D & p)
 
 inline void RRTPlanner::poseToPoint(Point2D & p, const geometry_msgs::Pose & pose)
 {
-	p.x(pose.position.y / map_grid_->info.resolution);
-	p.y(pose.position.x / map_grid_->info.resolution);
+	p[0] = (pose.position.y / map_grid_->info.resolution);
+	p[1] = (pose.position.x / map_grid_->info.resolution);
 }
 
 inline int RRTPlanner::toIndex(int x, int y)

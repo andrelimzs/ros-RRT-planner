@@ -19,42 +19,15 @@
 #include <Eigen/Geometry>
 #include <Eigen/Eigenvalues>
 
+#include <random>
+
 namespace rrt_planner
 {
 
 /**
  * A utility class to represent a 2D point
  */
-class Point2D
-{
-public:
-	Point2D(): x_(0), y_(0) {}
-	Point2D(int x, int y): x_(x), y_(y) {}
-
-	int x() const
-	{
-		return x_;
-	}
-
-	int y() const
-	{
-		return y_;
-	}
-
-	void x(int x)
-	{
-		x_ = x;
-	}
-
-	void y(int y)
-	{
-		y_ = y;
-	}
-
-private:
-	int x_;
-	int y_;
-};
+typedef Eigen::Vector2d Point2D;
 
 /**
  * Utility class to represent a (simplified) tree
@@ -64,13 +37,13 @@ private:
 class Tree
 {
 public:
-	Tree(int size) {
+	void reset(int size) {
 		adj_.resize(size, size);
 		adj_ = Eigen::MatrixXi::Zero(size, size);
 	}
 
 	float computeDistance(Point2D a, Point2D b) {
-		return sqrt( pow(a.x() - b.x(), 2) + pow(a.y() - b.y(), 2) );
+		return (a-b).norm();
 	}
 
 	int findNearest(Point2D newPoint) {
@@ -98,6 +71,10 @@ public:
 		int newIndex = points.size() - 1;
 		adj_(newIndex, nearIndex) = 1;
 		adj_(nearIndex, newIndex) = 1;
+	}
+
+	Point2D retrieve(int index) {
+		return points[index];
 	}
 
 private:
@@ -207,6 +184,28 @@ private:
 	 */
 	inline int toIndex(int, int);
 
+	/**
+	 * Generate a random state
+	 */
+	Point2D randomState();
+
+	/**
+	 * Check for collisions between two points
+	 */
+	bool checkCollisionFree(Point2D, Point2D);
+
+	/**
+	 * Generate control input, u from two points
+	 * (This will be useful when generalizing RRT to higher dimensions)
+	 */
+	Point2D selectControlInput(Point2D, Point2D);
+
+	/**
+	 * Calculate new state from a initial point and control input
+	 * (This will be useful when generalizing RRT to higher dimensions)
+	 */
+	Point2D computeNewState(Point2D, Point2D);
+
 	ros::NodeHandle * nh_;
 	ros::NodeHandle private_nh_;
 
@@ -226,7 +225,15 @@ private:
 	ros::Publisher path_pub_;
 
 	// RRT Parameters
+	Tree tree_;
 	int K_;
+	float timestep_;
+	float velMax_;
+
+	float xLimitLower_;
+	float xLimitUpper_;
+	float yLimitLower_;
+	float yLimitUpper_;
 };
 
 }
