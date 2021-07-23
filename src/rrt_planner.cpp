@@ -19,6 +19,7 @@ RRTPlanner::RRTPlanner(ros::NodeHandle * node)
 	private_nh_.param<int>("RRT_K", K_, 100);
 	private_nh_.param<float>("RRT_timestep", timestep_, 0.1);
 	private_nh_.param<float>("RRT_vel_max", velMax_, 2);
+	private_nh_.param<int>("RRT_occupied_threshold", occupiedThreshold_, 70);
 
 	// Initialize tree
 	tree_.reset(K_);
@@ -58,6 +59,10 @@ RRTPlanner::RRTPlanner(ros::NodeHandle * node)
 
 void RRTPlanner::mapCallback(const nav_msgs::OccupancyGrid::Ptr & msg)
 {
+	if (map_received_ == true) {
+		return;
+	}
+
 	map_grid_ = msg;
 
 	// Store map bounds
@@ -65,6 +70,9 @@ void RRTPlanner::mapCallback(const nav_msgs::OccupancyGrid::Ptr & msg)
 	yLimitLower_ = msg->info.origin.position.y;
 	xLimitUpper_ = xLimitLower_ + msg->info.width * msg->info.resolution;
 	yLimitUpper_ = yLimitLower_ + msg->info.height * msg->info.resolution;
+
+	// Store map origin
+	mapOrigin_ = Point2D(msg->info.origin.position.x, msg->info.origin.position.y);
 
 	// Build and display the map image
 	buildMapImage();

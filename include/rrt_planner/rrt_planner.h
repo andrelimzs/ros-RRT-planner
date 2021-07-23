@@ -229,11 +229,14 @@ private:
 	int K_;
 	float timestep_;
 	float velMax_;
+	int occupiedThreshold_;
 
 	float xLimitLower_;
 	float xLimitUpper_;
 	float yLimitLower_;
 	float yLimitUpper_;
+
+	Point2D mapOrigin_;
 };
 
 }
