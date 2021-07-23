@@ -15,6 +15,9 @@ RRTPlanner::RRTPlanner(ros::NodeHandle * node)
 	private_nh_.param<std::string>("map_topic", map_topic, "/map");
 	private_nh_.param<std::string>("path_topic", path_topic, "/path");
 
+	// Get RRT parameters from parameter server
+	private_nh_.param<int>("RRT_K", K_, 100);
+
 	// Subscribe to map topic
 	map_sub_ = nh_->subscribe<const nav_msgs::OccupancyGrid::Ptr &>(
 		map_topic, 1, &RRTPlanner::mapCallback, this);
@@ -128,7 +131,20 @@ void RRTPlanner::plan()
 
 	// TODO: Fill out this function with the RRT algorithm logic to plan a collision-free
 	//       path through the map starting from the initial pose and ending at the goal pose
-	
+
+	for (int k = 0; k < K_; k++) {
+		// Find random state
+
+
+		// Find nearest neighbour to random state
+
+
+		// Select input to get to random state
+
+
+		// Add vertex & edge to tree
+		
+	}
 }
 
 void RRTPlanner::publishPath()

@@ -3,6 +3,8 @@
 
 #include <random>
 #include <iostream>
+#include <vector>
+#include <math.h>
 
 #include <ros/ros.h>
 #include <nav_msgs/OccupancyGrid.h>
@@ -11,6 +13,11 @@
 #include <geometry_msgs/PoseStamped.h>
 
 #include <opencv2/opencv.hpp>
+
+#include <Eigen/Eigen>
+#include <Eigen/Dense>
+#include <Eigen/Geometry>
+#include <Eigen/Eigenvalues>
 
 namespace rrt_planner
 {
@@ -47,6 +54,55 @@ public:
 private:
 	int x_;
 	int y_;
+};
+
+/**
+ * Utility class to represent a (simplified) tree
+ * Vertices can be added but not removed
+ * Each vertex will be added with an edge at the same time
+ */
+class Tree
+{
+public:
+	Tree(int size) {
+		adj_.resize(size, size);
+		adj_ = Eigen::MatrixXi::Zero(size, size);
+	}
+
+	float computeDistance(Point2D a, Point2D b) {
+		return sqrt( pow(a.x() - b.x(), 2) + pow(a.y() - b.y(), 2) );
+	}
+
+	int findNearest(Point2D newPoint) {
+		// Find the nearest neighbour (in Euclidean distance)
+		float minDist = INFINITY;
+		int minIndex = -1;
+		for(int i = 0; i < points.size(); i++) {
+			float newDist = computeDistance(newPoint, points[i]);
+			if (newDist < minDist) {
+				minDist = newDist;
+				minIndex = i;
+			}
+		}
+
+		if (minIndex < 0) { throw "Tree.findNearest failed to find a solution"; }
+
+		return minIndex;
+	}
+
+	void addPoint(Point2D newPoint, int nearIndex) {
+		// Store (x,y)
+		points.push_back(newPoint);
+
+		// Add edge
+		int newIndex = points.size() - 1;
+		adj_(newIndex, nearIndex) = 1;
+		adj_(nearIndex, newIndex) = 1;
+	}
+
+private:
+	Eigen::MatrixXi adj_;
+	std::vector<Point2D> points;
 };
 
 
@@ -168,6 +224,9 @@ private:
 	ros::Subscriber init_pose_sub_;
 	ros::Subscriber goal_sub_;
 	ros::Publisher path_pub_;
+
+	// RRT Parameters
+	int K_;
 };
 
 }
