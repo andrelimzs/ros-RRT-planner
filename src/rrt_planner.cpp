@@ -166,12 +166,20 @@ void RRTPlanner::plan()
 
 		// Select input to get to random state
 		// In simple (x,y) state case, draw a line between and check for intersections
-		bool pathValid = checkCollisionFree(x_rand, nearestNeighbour);
+		bool pathValid = checkCollisionFree(x_new, nearestNeighbour);
 
 		// Add vertex & edge to tree
 		// Assume quadcopter is holomonic, therefore use x_rand instead of x_new
 		if (pathValid) {
 			tree_.addPoint(x_rand, nearestIndex);
+		}
+
+		// Check if reached goal
+		float distToGoal = (init_pose_ - x_new).norm();
+
+		if (distToGoal < velMax_ * timestep_) {
+			ROS_INFO("Reached!");
+			break;
 		}
 	}
 }
@@ -179,7 +187,7 @@ void RRTPlanner::plan()
 Point2D RRTPlanner::randomState()
 {
 	std::default_random_engine generator;
-	
+
 	// Generate random state within map boundaries
 	std::uniform_real_distribution<float> distributionX(xLimitLower_, xLimitUpper_);
 	float random_x = distributionX(generator);
