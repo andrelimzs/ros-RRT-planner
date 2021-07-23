@@ -148,7 +148,7 @@ void RRTPlanner::publishPath()
 bool RRTPlanner::isPointUnoccupied(const Point2D & p)
 {
 	// TODO: Fill out this function to check if a given point is occupied/free in the map
-
+	
 	return true;
 }
 
@@ -156,9 +156,9 @@ void RRTPlanner::buildMapImage()
 {
 	// Create a new opencv matrix with the same height and width as the received map
 	map_ = std::unique_ptr<cv::Mat>(new cv::Mat(map_grid_->info.height,
-																							map_grid_->info.width,
-																							CV_8UC3,
-																							cv::Scalar::all(255)));
+									map_grid_->info.width,
+									CV_8UC3,
+									cv::Scalar::all(255)));
 
 	// Fill the opencv matrix pixels with the map points
 	for (int i = 0; i < map_grid_->info.height; i++) {
