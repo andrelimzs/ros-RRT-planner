@@ -225,7 +225,15 @@ bool RRTPlanner::isPointUnoccupied(const Point2D & p)
 {
 	// TODO: Fill out this function to check if a given point is occupied/free in the map
 
-	return true;
+	// Convert Point2D to grid location
+	Point2D shifted = p + mapOrigin_;
+	int x = round(shifted[0] / map_grid_->info.resolution) * map_grid_->info.resolution;
+	int y = round(shifted[1] / map_grid_->info.resolution) * map_grid_->info.resolution;
+
+	// Check map
+	bool occupied = (map_grid_->data[x,y] > occupiedThreshold_);
+
+	return !occupied;
 }
 
 void RRTPlanner::buildMapImage()
