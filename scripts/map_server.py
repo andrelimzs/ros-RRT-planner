@@ -23,7 +23,7 @@ def map_server(filename):
     map_img = cv2.imread(filename, 0)
 
     # Normalise
-    map_img = (100 - map_img/255*100)
+    map_img = (map_img/255*100)
     # OccupancyGrid is int8
     map_img = map_img.astype(np.int8)
 
@@ -38,11 +38,15 @@ def map_server(filename):
     map.info.width = map_img.shape[0]
     map.info.height = map_img.shape[1]
     # Center map on origin
-    map.info.origin.position.x = map.info.width * map.info.resolution / 2
-    map.info.origin.position.y = map.info.height * map.info.resolution / 2
+    map.info.origin.position.x = -map.info.width * map.info.resolution / 2
+    map.info.origin.position.y = -map.info.height * map.info.resolution / 2
     
     # Flatten because OccupanyGrid data is a 1D array
     map.data = map_img.flatten()
+
+    # Wait until there are subscribers
+    while pub.get_num_connections() < 1:
+        pass
     
     rate = rospy.Rate(1)
     while not rospy.is_shutdown():
