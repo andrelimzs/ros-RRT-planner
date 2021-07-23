@@ -128,6 +128,7 @@ void RRTPlanner::plan()
 
 	// TODO: Fill out this function with the RRT algorithm logic to plan a collision-free
 	//       path through the map starting from the initial pose and ending at the goal pose
+	
 }
 
 void RRTPlanner::publishPath()
@@ -148,7 +149,7 @@ void RRTPlanner::publishPath()
 bool RRTPlanner::isPointUnoccupied(const Point2D & p)
 {
 	// TODO: Fill out this function to check if a given point is occupied/free in the map
-	
+
 	return true;
 }
 
