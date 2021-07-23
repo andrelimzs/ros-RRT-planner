@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>rrt_planner</name>
+  <version>0.0.0</version>
+  <description>The rrt_planner package</description>
+
+  <maintainer email="sarthak@polybee.co">Sarthak Mittal</maintainer>
+  <license>TODO</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>nav_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>roscpp</depend>
+
+  <export>
+  </export>
+</package>
