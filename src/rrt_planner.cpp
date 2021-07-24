@@ -213,18 +213,26 @@ Point2D RRTPlanner::selectControlInput(Point2D initial, Point2D destination)
 	// Set control input as a straight line from initial to destination
 	Point2D u = destination - initial;
 
+	if (u.norm() < 1e-3) {
+		throw std::runtime_error("selectControlInput | Points are too close together");
+	}
+
 	// Implement a constant velocity model, therefore use max velocity
-	u /= u.norm() * velMax_;
+	u = u * (velMax_ / u.norm());
 
 	return u;
 }
 
-Point2D RRTPlanner::computeNewState(Point2D initial, Point2D control_input)
+Point2D RRTPlanner::computeNewState(Point2D initial, Point2D destination, Point2D control_input)
 {
 	// Use first-order euler integration (Sufficient for a first-order system, vel -> pos)
-	Point2D final = initial + control_input * timestep_;
-	
-	return final;
+	Point2D step = control_input * timestep_;
+
+	if (step.norm() < (destination-initial).norm()) {
+		return initial + step;
+	} else {
+		return destination;
+	}
 }
 
 void RRTPlanner::publishPath()
