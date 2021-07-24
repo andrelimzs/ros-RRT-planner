@@ -38,8 +38,9 @@ class Tree
 {
 public:
 	void reset(int size) {
-		adj_.resize(size, size);
-		adj_ = Eigen::MatrixXi::Zero(size, size);
+		adj_.resize(size+1, size+1);
+		adj_ = Eigen::MatrixXi::Zero(size+1, size+1);
+		points.clear();
 	}
 
 	float computeDistance(Point2D a, Point2D b) {
@@ -48,7 +49,7 @@ public:
 
 	int findNearest(Point2D newPoint) {
 		// Find the nearest neighbour (in Euclidean distance)
-		float minDist = INFINITY;
+		float minDist = 1e9;
 		int minIndex = -1;
 		for(int i = 0; i < points.size(); i++) {
 			float newDist = computeDistance(newPoint, points[i]);
@@ -58,9 +59,14 @@ public:
 			}
 		}
 
-		if (minIndex < 0) { throw "Tree.findNearest failed to find a solution"; }
+		if (minIndex < 0) { throw std::runtime_error("Tree findNearest failed to find a solution"); }
 
 		return minIndex;
+	}
+
+	void addPoint(Point2D newPoint) {
+		// Store (x,y)
+		points.push_back(newPoint);
 	}
 
 	void addPoint(Point2D newPoint, int nearIndex) {
@@ -69,6 +75,7 @@ public:
 
 		// Add edge
 		int newIndex = points.size() - 1;
+
 		adj_(newIndex, nearIndex) = 1;
 		adj_(nearIndex, newIndex) = 1;
 	}
@@ -204,7 +211,7 @@ private:
 	 * Calculate new state from a initial point and control input
 	 * (This will be useful when generalizing RRT to higher dimensions)
 	 */
-	Point2D computeNewState(Point2D, Point2D);
+	Point2D computeNewState(Point2D, Point2D, Point2D);
 
 	ros::NodeHandle * nh_;
 	ros::NodeHandle private_nh_;
@@ -237,6 +244,9 @@ private:
 	float yLimitUpper_;
 
 	Point2D mapOrigin_;
+
+	std::random_device r;
+	std::default_random_engine generator;
 };
 
 }
