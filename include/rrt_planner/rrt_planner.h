@@ -84,6 +84,34 @@ public:
 		return points[index];
 	}
 
+	int findParent(int index) {
+		for (int i = 0; i < points.size(); i++) {
+			if (adj_(i, index) == 1) {
+				return i;
+			}
+		}
+		
+		throw std::runtime_error("Tree | Node has no parent");
+	}
+
+	std::vector<Point2D> findPath() {
+		// Find path from root (first node) to goal (last node)
+		std::vector<Point2D> path;
+		int index = points.size() - 1;
+
+		// Each node in a tree only has one parent, loop through to find the path
+		while (index != 0) {
+			path.push_back(points[index]);
+			index = findParent(index);
+		}
+
+		// Reverse vector to get origin -> goal
+		std::reverse(path.begin(), path.end());
+
+		return path;
+
+	}
+
 private:
 	Eigen::MatrixXi adj_;
 	std::vector<Point2D> points;
@@ -131,7 +159,7 @@ private:
 	 *
 	 * THE CANDIDATE IS REQUIRED TO IMPLEMENT THE LOGIC IN THIS FUNCTION
 	 */
-	void publishPath();
+	void publishPath(std::vector<Point2D>);
 
 	/**
 	 * Utility function to check if a given point is free/occupied in the map

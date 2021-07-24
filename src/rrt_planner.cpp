@@ -151,6 +151,7 @@ void RRTPlanner::plan()
 	// given pair of initial pose and goal points
 	goal_received_ = false;
 	init_pose_received_ = false;
+	bool planSuccessful = false;
 
 	// TODO: Fill out this function with the RRT algorithm logic to plan a collision-free
 	//       path through the map starting from the initial pose and ending at the goal pose
@@ -194,19 +195,30 @@ void RRTPlanner::plan()
 			drawLine(nearestNeighbour, x_new, cv::Scalar(255, 12, 12), 1);
 			drawCircle(x_new, 2, cv::Scalar(12, 12, 255));
 
+			displayMapImage();
+
 			k++;
+
+			// Check if reached goal
+			float distToGoal = (goal_ - x_new).norm();
+
+			// [DEBUG]
+			// ROS_INFO("Dist to goal: %0.2f", distToGoal);
+
+			if (distToGoal < 0.5*(velMax_ * timestep_) && checkCollisionFree(x_new, goal_)) {
+				planSuccessful = true;
+				ROS_INFO("Reached!");
+				break;
+			}
 		}
+	}
 
-		// Check if reached goal
-		float distToGoal = (goal_ - x_new).norm();
+	if (planSuccessful) {
+		// Retrieve path from tree
+		std::vector<Point2D> path = tree_.findPath();
 
-		// [DEBUG]
-		ROS_INFO("Dist to goal: %0.2f", distToGoal);
-
-		if (distToGoal < 0.5*(velMax_ * timestep_)) {
-			ROS_INFO("Reached!");
-			break;
-		}
+		// Publish
+		publishPath(path);
 	}
 }
 
@@ -280,18 +292,27 @@ Point2D RRTPlanner::computeNewState(Point2D initial, Point2D destination, Point2
 	}
 }
 
-void RRTPlanner::publishPath()
+void RRTPlanner::publishPath(std::vector<Point2D> path)
 {
 	// Create new Path msg
-	nav_msgs::Path path;
-	path.header.frame_id = map_grid_->header.frame_id;
-	path.header.stamp = ros::Time::now();
+	nav_msgs::Path msg;
+	msg.header.frame_id = map_grid_->header.frame_id;
+	msg.header.stamp = ros::Time::now();
 
 	// TODO: Fill nav_msgs::Path msg with the path calculated by RRT
 
+	// Convert vector of Point2Ds to array of PoseStamped
+	for (auto& it : path) {
+		geometry_msgs::PoseStamped newPose;
+		newPose.header = msg.header;
+		newPose.pose.position.x = it[0];
+		newPose.pose.position.y = it[1];
+
+		msg.poses.push_back(newPose);
+	}
 
 	// Publish the calculated path
-	path_pub_.publish(path);
+	path_pub_.publish(msg);
 
 	displayMapImage();
 }
