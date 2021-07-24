@@ -215,9 +215,27 @@ Point2D RRTPlanner::randomState()
 	return Point2D(random_x, random_y);
 }
 
-bool RRTPlanner::checkCollisionFree(Point2D a, Point2D b)
+bool RRTPlanner::checkCollisionFree(Point2D p1, Point2D p2)
 {
 	// TODO
+	
+	// Use a line intersection as a 2D approximation of collision checking (because state is x,y)
+	// Use openCV's LineIterator as a well implemented Bresenham's
+	cv::LineIterator it(*map_, rosToCVPoint(p1), rosToCVPoint(p2), 4);
+
+	bool collision = false;
+	for (int i = 0; i < it.count; i++, ++it)
+	{
+		Point2D pose = CVToRosPoint(it.pos());
+		if (!isPointUnoccupied(pose)) {
+			std::cout << "collision at " << pose << "\n";
+
+			// [DEBUG] Mark collisions
+			cv::circle(*map_, it.pos(), 5, cv::Scalar(0,255,0), -1);
+
+			return false;
+		}
+	}
 
 	return true;
 }
