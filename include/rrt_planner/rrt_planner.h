@@ -268,6 +268,7 @@ private:
 
 	// RRT Parameters
 	Tree tree_;
+	bool showPlanning_;
 	int K_;
 	float timestep_;
 	float velMax_;

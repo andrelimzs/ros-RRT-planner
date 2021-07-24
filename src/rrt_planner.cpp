@@ -16,6 +16,7 @@ RRTPlanner::RRTPlanner(ros::NodeHandle * node)
 	private_nh_.param<std::string>("/path_topic", path_topic, "/path");
 
 	// Get RRT parameters from parameter server
+	private_nh_.getParam("/RRT_show_planning", showPlanning_);
 	private_nh_.getParam("/RRT_K", K_);
 	private_nh_.getParam("/RRT_timestep", timestep_);
 	private_nh_.getParam("/RRT_vel_max", velMax_);
@@ -192,12 +193,12 @@ void RRTPlanner::plan()
 		// Assume quadcopter is holomonic, therefore use x_rand instead of x_new
 		if (pathValid) {
 			tree_.addPoint(x_new, nearestIndex);
-			drawLine(nearestNeighbour, x_new, cv::Scalar(255, 12, 12), 1);
-			drawCircle(x_new, 2, cv::Scalar(12, 12, 255));
 
-			displayMapImage();
-
-			k++;
+			if (showPlanning_) {
+				drawLine(nearestNeighbour, x_new, cv::Scalar(255, 12, 12), 1);
+				drawCircle(x_new, 2, cv::Scalar(12, 12, 255));
+				displayMapImage();
+			}
 
 			// Check if reached goal
 			float distToGoal = (goal_ - x_new).norm();
@@ -214,6 +215,7 @@ void RRTPlanner::plan()
 				ROS_INFO("Reached!");
 				break;
 			}
+			k++;
 		}
 	}
 
@@ -223,6 +225,13 @@ void RRTPlanner::plan()
 
 		// Publish
 		publishPath(path);
+
+		// Draw path on map
+		Point2D prev_it = init_pose_;
+		for (auto& it : path) {
+			drawLine(prev_it, it, cv::Scalar(255, 12, 12), 1);
+			prev_it = it;
+		}
 	}
 }
 
@@ -260,7 +269,9 @@ bool RRTPlanner::checkCollisionFree(Point2D p1, Point2D p2)
 		Point2D pose = CVToRosPoint(it.pos());
 		if (!isPointUnoccupied(pose)) {
 			// [DEBUG] Mark collisions
-			cv::circle(*map_, it.pos(), 2, cv::Scalar(0,255,0), -1);
+			if (showPlanning_) {
+				cv::circle(*map_, it.pos(), 2, cv::Scalar(0,255,0), -1);
+			}
 
 			return false;
 		}
