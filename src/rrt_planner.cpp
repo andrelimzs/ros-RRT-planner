@@ -12,17 +12,20 @@ RRTPlanner::RRTPlanner(ros::NodeHandle * node)
 {
 	// Get map and path topics from parameter server
 	std::string map_topic, path_topic;
-	private_nh_.param<std::string>("map_topic", map_topic, "/map");
-	private_nh_.param<std::string>("path_topic", path_topic, "/path");
+	private_nh_.param<std::string>("/map_topic", map_topic, "/map");
+	private_nh_.param<std::string>("/path_topic", path_topic, "/path");
 
 	// Get RRT parameters from parameter server
-	private_nh_.param<int>("RRT_K", K_, 100);
-	private_nh_.param<float>("RRT_timestep", timestep_, 0.1);
-	private_nh_.param<float>("RRT_vel_max", velMax_, 2);
-	private_nh_.param<int>("RRT_occupied_threshold", occupiedThreshold_, 70);
+	private_nh_.getParam("/RRT_K", K_);
+	private_nh_.getParam("/RRT_timestep", timestep_);
+	private_nh_.getParam("/RRT_vel_max", velMax_);
+	private_nh_.getParam("/RRT_occupied_threshold", occupiedThreshold_);
+
+	ROS_INFO("Parameters loaded | K=%d, timestep=%0.1f, vel_max=%0.1f", K_, timestep_, velMax_);
 
 	// Initialize tree
 	tree_.reset(K_);
+	generator = std::default_random_engine (std::chrono::system_clock::now().time_since_epoch().count());
 
 	// Subscribe to map topic
 	map_sub_ = nh_->subscribe<const nav_msgs::OccupancyGrid::Ptr &>(
@@ -285,6 +288,7 @@ void RRTPlanner::buildMapImage()
 
 void RRTPlanner::displayMapImage(int delay)
 {
+	cv::namedWindow("Output", cv::WINDOW_NORMAL);
 	cv::imshow("Output", *map_);
 	cv::waitKey(delay);
 }
