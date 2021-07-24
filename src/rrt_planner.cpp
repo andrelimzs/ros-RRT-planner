@@ -370,13 +370,30 @@ inline void RRTPlanner::poseToPoint(Point2D & p, const geometry_msgs::Pose & pos
 
 inline cv::Point RRTPlanner::rosToCVPoint(Point2D p)
 {
+	// Convert from ROS ENU 	x: right	y: up
+	// to CV's coordainte frame	x: right	y: down
+	// Also shift the origin to match the map origin
 	Point2D shifted = (p - mapOrigin_) / map_grid_->info.resolution;
 	return cv::Point(shifted[0], map_grid_->info.height - shifted[1] - 1);
+}
+
+inline Point2D RRTPlanner::CVToRosPoint(cv::Point pt)
+{
+	// Convert from CV's coordainte	x: right	y: down
+	// to ROS ENU 					x: right	y: up
+	// Also shift the origin to match the map origin
+	Point2D p(pt.x, map_grid_->info.height - pt.y - 1);
+	return p * map_grid_->info.resolution + mapOrigin_;
 }
 
 inline int RRTPlanner::toIndex(int x, int y)
 {
 	return x * map_grid_->info.width + y;
+}
+
+inline int RRTPlanner::toIndex(Point2D p)
+{
+	return p[0] + p[1] * map_grid_->info.width;
 }
 
 }  // namespace rrt_planner

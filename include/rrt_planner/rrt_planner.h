@@ -187,9 +187,16 @@ private:
 	inline void poseToPoint(Point2D &, const geometry_msgs::Pose &);
 
 	/**
+	 * Utility functions to convert point between ROS coordinates and CV coordinates
+	 */
+	inline cv::Point rosToCVPoint(Point2D p);
+	inline Point2D CVToRosPoint(cv::Point p);
+
+	/**
 	 * Utility function to convert (x, y) matrix coordinate to corresponding vector coordinate
 	 */
 	inline int toIndex(int, int);
+	inline int toIndex(Point2D p);
 
 	/**
 	 * Generate a random state
