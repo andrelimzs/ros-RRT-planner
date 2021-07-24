@@ -234,7 +234,7 @@ private:
 	/**
 	 * Generate a random state
 	 */
-	Point2D randomState();
+	Point2D randomState(Point2D);
 
 	/**
 	 * Check for collisions between two points

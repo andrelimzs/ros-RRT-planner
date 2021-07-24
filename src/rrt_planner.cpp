@@ -193,7 +193,7 @@ void RRTPlanner::plan()
 bool RRTPlanner::generateRRT(Tree *tree, Point2D target, bool *pathValid)
 {
 	// Find random state
-	Point2D x_rand = randomState();
+	Point2D x_rand = randomState(target);
 
 	// Find nearest neighbour to random state
 	int nearestIndex = tree->findNearest(x_rand);
@@ -231,14 +231,14 @@ bool RRTPlanner::generateRRT(Tree *tree, Point2D target, bool *pathValid)
 	}
 }
 
-Point2D RRTPlanner::randomState()
+Point2D RRTPlanner::randomState(Point2D target)
 {
 	// Add bias toward goal
 	std::uniform_real_distribution<float> distributionGoalBias(0, 1);
 	float setAsGoal = distributionGoalBias(generator);
 
 	if (setAsGoal <= goalBias_) {
-		return goal_;
+		return target;
 	} else {
 		// Generate random state within map boundaries
 		std::uniform_real_distribution<float> distributionX(xLimitLower_, xLimitUpper_);
