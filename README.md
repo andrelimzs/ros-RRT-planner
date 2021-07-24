@@ -1,34 +1,57 @@
 # RRT for Path Planning in ROS
 
-## The Task
-Implement the Rapidly Exploring Random Trees (RRT) algorithm to plan collision-free paths in a 2D environment.
+## Overview
+Rapidly Exploring Random Trees (RRT) algorithm has been implemented to plan collision-free paths in a 2D environment.
 
-## How to run it?
-Place it in your catkin workspace `src` folder and build it using:
-```bash
-catkin build
+
+## Usage
+Run the launch file
+
 ```
-
-You can run the launch file given in the `launch` folder using:
-```bash
 roslaunch rrt_planner rrt_planner.launch
 ```
+Which will run:
+1. **RViz** to select inital position, goal location and provide visualization
+2. **Map Server** which will load an image file and publish it as a `nav_msgs::OccupancyGrid` on the `/map` topic
+3. **RRT Planner** to receive a map, initial pose, and goal pose, and calculate and publish a collision-free path as a `nav_msgs::Path` msg
 
-This launch file automatically launches three nodes:
-- **RViz** For visualization
-- **Map Server** to load a map from a .png file and publish it as a `nav_msgs::OccupancyGrid` on the `/map` topic
-- **RRT Planner** to receive a map, initial pose, and goal pose, and calculate and publish a collision-free path as a `nav_msgs::Path` msg
+## Config files
+### Map config (`cfg/map.yaml`)
 
-#### Map Server
-We have provided 5 example map images in the [resources](resources) directory that can be used to test your RRT implementation.
-The map server node is responsible for loading a map file and publishing it as a `nav_msgs::OccupancyGrid` on the `/map` topic.
-To select the map file that should be loaded and published, configure the parameters in [cfg/map.yaml](cfg/map.yaml) file.
+Contains parameters for the map that will be published by map_server
 
-#### RViz
-When a map has been loaded successfully it should be visible in RViz. The user can then set the initial pose and the goal pose through RViz.
-Press the `2D Pose Estimate` button in RViz to set the initial pose. Press the `2D Nav Goal` button in RViz to set the goal pose.
-Or you can provide the same through the topics `/initialpose` and `/move_base_simple/goal` respectively.
 
-## Tuning
-Parameters can be provided to the RRT Planner node using the [cfg/config.yaml](cfg/config.yaml) file.
-Certain RRT parameters can be made configurable by adding them to this file.
+### RRT Planner config (`cg/config.yaml`)
+
+Contains parameters for the RRT planner
+
+- `RRT_show_planning` Turn intermediate visualisation on/off
+- `RRT_K` Limit the number of vertices to explore 
+- `RRT_timestep` Set the timestep between vertices
+- `RRT_vel_max` Set a velocity limit (limits how far each vertex can explore)
+- `RRT_occupied_threshold` Threshold to treat occupancy grid as occupied
+- `RRT_goal_bias` Bias to select goal as the next random state
+
+
+## Nodes
+### map_server.py
+Reads an image file and publishes it as an `nav_msgs::OccupancyGrid`
+
+#### Published Topics
+- `/map` ([nav_msgs/OccupancyGrid](http://docs.ros.org/en/noetic/api/nav_msgs/html/msg/OccupancyGrid.html)) <br />
+An occupancy grid representing the occupied/free space in the surroundings.
+
+### rrt_planner
+A planner decided to efficient search nonconvex spaces by building a random tree. Generates collision free paths to navigate a 2D environment.
+
+#### Subscribed Topics
+- `/map` ([nav_msgs/OccupancyGrid](http://docs.ros.org/en/noetic/api/nav_msgs/html/msg/OccupancyGrid.html)) <br />
+An occupancy grid of the surroundings
+- `/initialpose` ([geometry_msgs/PoseWithCovarianceStamped](http://docs.ros.org/en/noetic/api/geometry_msgs/html/msg/PoseWithCovarianceStamped.html)) <br />
+A pose of the initial position
+- `/move_base_simple/goal` ([geometry_msgs/PoseStamped](http://docs.ros.org/en/noetic/api/geometry_msgs/html/msg/PoseStamped.html)) <br />
+The goal location to navigate towards
+
+#### Published Topics
+- `/path` ([nav_msgs/Path](http://docs.ros.org/en/noetic/api/nav_msgs/html/msg/Path.html)) <br />
+A series of `Pose`s which represent the planned path
