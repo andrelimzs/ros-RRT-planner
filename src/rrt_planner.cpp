@@ -169,15 +169,16 @@ void RRTPlanner::plan()
 	// Iterate to get K vertices
 	int kInit = 0;
 	int kGoal = 0;
+	Point2D xLastInit = init_pose_;
+	Point2D xLastGoal = goal_;
 	while (kInit < K_ && kGoal < K_) {
 		bool pathValid;
-
 		// Alternate between tree at init and tree at goal
 		if (kInit < kGoal) {
-			planSuccessful = generateRRT(&treeInit_, goal_, &pathValid);
+			planSuccessful = generateRRT(&treeInit_, xLastGoal, &pathValid, &xLastInit);
 			if (pathValid) { kInit++; }
 		} else {
-			planSuccessful = generateRRT(&treeGoal_, init_pose_, &pathValid);
+			planSuccessful = generateRRT(&treeGoal_, xLastInit, &pathValid, &xLastGoal);
 			if (pathValid) { kGoal++; }
 		}
 
@@ -188,7 +189,8 @@ void RRTPlanner::plan()
 		// Retrieve path from tree
 		std::vector<Point2D> path = treeInit_.findPath();
 		std::vector<Point2D> path2 = treeGoal_.findPath();
-		path.insert(path.end(), path2.begin(), path2.begin());
+		std::reverse(path2.begin(), path2.end());
+		path.insert(path.end(), path2.begin(), path2.end());
 
 		// Publish
 		publishPath(path);
@@ -202,7 +204,7 @@ void RRTPlanner::plan()
 	}
 }
 
-bool RRTPlanner::generateRRT(Tree *tree, Point2D target, bool *pathValid)
+bool RRTPlanner::generateRRT(Tree *tree, Point2D target, bool *pathValid, Point2D *x_last)
 {
 	// Find random state
 	Point2D x_rand = randomState(target);
@@ -240,7 +242,12 @@ bool RRTPlanner::generateRRT(Tree *tree, Point2D target, bool *pathValid)
 			ROS_INFO("Reached!");
 			return true;
 		}
+
+		// Update x_last for other tree
+		*x_last = x_new;
 	}
+
+	return false;
 }
 
 Point2D RRTPlanner::randomState(Point2D target)

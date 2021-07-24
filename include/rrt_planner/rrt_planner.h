@@ -100,10 +100,12 @@ public:
 		int index = points.size() - 1;
 
 		// Each node in a tree only has one parent, loop through to find the path
-		while (index != 0) {
+		while (index > 0) {
 			path.push_back(points[index]);
 			index = findParent(index);
 		}
+
+		path.push_back(points[0]);
 
 		// Reverse vector to get origin -> goal
 		std::reverse(path.begin(), path.end());
@@ -140,7 +142,7 @@ public:
 	/**
 	 * 
 	 */
-	bool generateRRT(Tree*, Point2D, bool*);
+	bool generateRRT(Tree*, Point2D, bool*, Point2D*);
 
 	/**
 	 * Callback for map subscriber
