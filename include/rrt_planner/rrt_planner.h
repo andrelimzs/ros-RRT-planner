@@ -244,6 +244,7 @@ private:
 	float timestep_;
 	float velMax_;
 	int occupiedThreshold_;
+	float goalBias_;
 
 	float xLimitLower_;
 	float xLimitUpper_;

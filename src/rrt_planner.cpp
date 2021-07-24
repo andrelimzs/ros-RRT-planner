@@ -20,8 +20,9 @@ RRTPlanner::RRTPlanner(ros::NodeHandle * node)
 	private_nh_.getParam("/RRT_timestep", timestep_);
 	private_nh_.getParam("/RRT_vel_max", velMax_);
 	private_nh_.getParam("/RRT_occupied_threshold", occupiedThreshold_);
+	private_nh_.getParam("/RRT_goal_bias", goalBias_);
 
-	ROS_INFO("Parameters loaded | K=%d, timestep=%0.1f, vel_max=%0.1f", K_, timestep_, velMax_);
+	ROS_INFO("Parameters loaded | K=%d, timestep=%0.1f, vel_max=%0.1f, goal bias=%0.1f", K_, timestep_, velMax_, goalBias_);
 
 	// Initialize tree
 	tree_.reset(K_);
@@ -160,6 +161,7 @@ void RRTPlanner::plan()
 	// Add initial pose to tree
 	tree_.addPoint(init_pose_);
 	ROS_INFO("init_pose_: (%0.2f, %0.2f)", init_pose_[0], init_pose_[1]);
+	ROS_INFO("goal_: (%0.2f, %0.2f)", goal_[0], goal_[1]);
 
 	// Iterate to get K vertices
 	int k = 0;
@@ -167,19 +169,19 @@ void RRTPlanner::plan()
 	// for (int k = 0; k < K_; k++) {
 		// Find random state
 		Point2D x_rand = randomState();
-		ROS_INFO("x_rand: (%0.2f, %0.2f)", x_rand[0], x_rand[1]);
+		// ROS_INFO("x_rand: (%0.2f, %0.2f)", x_rand[0], x_rand[1]);
 
 		// Find nearest neighbour to random state
 		int nearestIndex = tree_.findNearest(x_rand);
 		// ROS_INFO("nearestIndex: %d", nearestIndex);
 		Point2D nearestNeighbour = tree_.retrieve(nearestIndex);
-		ROS_INFO("nearestNeighbour: (%0.2f, %0.2f)", nearestNeighbour[0], nearestNeighbour[1]);
+		// ROS_INFO("nearestNeighbour: (%0.2f, %0.2f)", nearestNeighbour[0], nearestNeighbour[1]);
 
 		// Find control input and new state
 		Point2D u = selectControlInput(nearestNeighbour, x_rand);
 		// ROS_INFO("u: (%0.2f, %0.2f)", u[0], u[1]);
 		Point2D x_new = computeNewState(nearestNeighbour, x_rand, u);
-		ROS_INFO("x_new: (%0.2f, %0.2f)", x_new[0], x_new[1]);
+		// ROS_INFO("x_new: (%0.2f, %0.2f)", x_new[0], x_new[1]);
 
 		// Select input to get to random state
 		// In simple (x,y) state case, draw a line between and check for intersections
@@ -188,13 +190,20 @@ void RRTPlanner::plan()
 		// Add vertex & edge to tree
 		// Assume quadcopter is holomonic, therefore use x_rand instead of x_new
 		if (pathValid) {
-			tree_.addPoint(x_rand, nearestIndex);
+			tree_.addPoint(x_new, nearestIndex);
+			drawLine(nearestNeighbour, x_new, cv::Scalar(255, 12, 12), 1);
+			drawCircle(x_new, 2, cv::Scalar(12, 12, 255));
+
+			k++;
 		}
 
 		// Check if reached goal
-		float distToGoal = (init_pose_ - x_new).norm();
+		float distToGoal = (goal_ - x_new).norm();
 
-		if (distToGoal < velMax_ * timestep_) {
+		// [DEBUG]
+		ROS_INFO("Dist to goal: %0.2f", distToGoal);
+
+		if (distToGoal < 0.5*(velMax_ * timestep_)) {
 			ROS_INFO("Reached!");
 			break;
 		}
@@ -203,16 +212,22 @@ void RRTPlanner::plan()
 
 Point2D RRTPlanner::randomState()
 {
-	std::default_random_engine generator;
+	// Add bias toward goal
+	std::uniform_real_distribution<float> distributionGoalBias(0, 1);
+	float setAsGoal = distributionGoalBias(generator);
 
-	// Generate random state within map boundaries
-	std::uniform_real_distribution<float> distributionX(xLimitLower_, xLimitUpper_);
-	float random_x = distributionX(generator);
+	if (setAsGoal <= goalBias_) {
+		return goal_;
+	} else {
+		// Generate random state within map boundaries
+		std::uniform_real_distribution<float> distributionX(xLimitLower_, xLimitUpper_);
+		float random_x = distributionX(generator);
 
-	std::uniform_real_distribution<float> distributionY(yLimitLower_, yLimitUpper_);
-	float random_y = distributionY(generator);
+		std::uniform_real_distribution<float> distributionY(yLimitLower_, yLimitUpper_);
+		float random_y = distributionY(generator);
 
-	return Point2D(random_x, random_y);
+		return Point2D(random_x, random_y);
+	}
 }
 
 bool RRTPlanner::checkCollisionFree(Point2D p1, Point2D p2)
@@ -228,10 +243,8 @@ bool RRTPlanner::checkCollisionFree(Point2D p1, Point2D p2)
 	{
 		Point2D pose = CVToRosPoint(it.pos());
 		if (!isPointUnoccupied(pose)) {
-			std::cout << "collision at " << pose << "\n";
-
 			// [DEBUG] Mark collisions
-			cv::circle(*map_, it.pos(), 5, cv::Scalar(0,255,0), -1);
+			cv::circle(*map_, it.pos(), 2, cv::Scalar(0,255,0), -1);
 
 			return false;
 		}
@@ -245,7 +258,7 @@ Point2D RRTPlanner::selectControlInput(Point2D initial, Point2D destination)
 	// Set control input as a straight line from initial to destination
 	Point2D u = destination - initial;
 
-	if (u.norm() < 1e-3) {
+	if (u.norm() < 1e-6) {
 		throw std::runtime_error("selectControlInput | Points are too close together");
 	}
 
@@ -292,7 +305,7 @@ bool RRTPlanner::isPointUnoccupied(const Point2D & p)
 	shifted[0] = round(shifted[0] / map_grid_->info.resolution);
 	shifted[1] = round(shifted[1] / map_grid_->info.resolution);
 
-	ROS_INFO("(%0.1f, %0.1f) -> (%d,%d)", p[0],p[1], shifted[0],shifted[1]);
+	// ROS_INFO("(%0.1f, %0.1f) -> (%d,%d)", p[0],p[1], shifted[0],shifted[1]);
 
 	if (shifted[0] < 0 || shifted[0] > map_grid_->info.width
 		|| shifted[1] < 0 || shifted[1] > map_grid_->info.height) {
@@ -374,7 +387,7 @@ inline cv::Point RRTPlanner::rosToCVPoint(Point2D p)
 	// to CV's coordainte frame	x: right	y: down
 	// Also shift the origin to match the map origin
 	Point2D shifted = (p - mapOrigin_) / map_grid_->info.resolution;
-	return cv::Point(shifted[0], map_grid_->info.height - shifted[1] - 1);
+	return cv::Point(shifted[0], map_grid_->info.height - shifted[1]);
 }
 
 inline Point2D RRTPlanner::CVToRosPoint(cv::Point pt)
@@ -382,7 +395,7 @@ inline Point2D RRTPlanner::CVToRosPoint(cv::Point pt)
 	// Convert from CV's coordainte	x: right	y: down
 	// to ROS ENU 					x: right	y: up
 	// Also shift the origin to match the map origin
-	Point2D p(pt.x, map_grid_->info.height - pt.y - 1);
+	Point2D p(pt.x, map_grid_->info.height - pt.y);
 	return p * map_grid_->info.resolution + mapOrigin_;
 }
 
