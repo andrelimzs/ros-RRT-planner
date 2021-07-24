@@ -154,18 +154,32 @@ void RRTPlanner::plan()
 	// TODO: Fill out this function with the RRT algorithm logic to plan a collision-free
 	//       path through the map starting from the initial pose and ending at the goal pose
 
+	// Reset tree
+	tree_.reset(K_);
+
+	// Add initial pose to tree
+	tree_.addPoint(init_pose_);
+	ROS_INFO("init_pose_: (%0.2f, %0.2f)", init_pose_[0], init_pose_[1]);
+
 	// Iterate to get K vertices
-	for (int k = 0; k < K_; k++) {
+	int k = 0;
+	while (k < K_) {
+	// for (int k = 0; k < K_; k++) {
 		// Find random state
 		Point2D x_rand = randomState();
+		ROS_INFO("x_rand: (%0.2f, %0.2f)", x_rand[0], x_rand[1]);
 
 		// Find nearest neighbour to random state
 		int nearestIndex = tree_.findNearest(x_rand);
+		// ROS_INFO("nearestIndex: %d", nearestIndex);
 		Point2D nearestNeighbour = tree_.retrieve(nearestIndex);
+		ROS_INFO("nearestNeighbour: (%0.2f, %0.2f)", nearestNeighbour[0], nearestNeighbour[1]);
 
 		// Find control input and new state
-		Point2D u = selectControlInput(x_rand, nearestNeighbour);
-		Point2D x_new = computeNewState(nearestNeighbour, u);
+		Point2D u = selectControlInput(nearestNeighbour, x_rand);
+		// ROS_INFO("u: (%0.2f, %0.2f)", u[0], u[1]);
+		Point2D x_new = computeNewState(nearestNeighbour, x_rand, u);
+		ROS_INFO("x_new: (%0.2f, %0.2f)", x_new[0], x_new[1]);
 
 		// Select input to get to random state
 		// In simple (x,y) state case, draw a line between and check for intersections
