@@ -229,7 +229,7 @@ void RRTPlanner::plan()
 		// Draw path on map
 		Point2D prev_it = init_pose_;
 		for (auto& it : path) {
-			drawLine(prev_it, it, cv::Scalar(255, 12, 12), 1);
+			drawLine(prev_it, it, cv::Scalar(12, 255, 12), 2);
 			prev_it = it;
 		}
 	}

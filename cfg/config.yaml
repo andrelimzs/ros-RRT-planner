@@ -4,7 +4,7 @@ path_topic: '/path'
 # Add more parameters here to make the RRT algorithm tunable
 
 # Show node & edges during planning
-RRT_show_planning: false
+RRT_show_planning: true
 
 # Number of vertices to explore
 RRT_K: 10000
