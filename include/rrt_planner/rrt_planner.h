@@ -138,6 +138,11 @@ public:
 	void plan();
 
 	/**
+	 * 
+	 */
+	bool generateRRT(Tree*, Point2D, bool*);
+
+	/**
 	 * Callback for map subscriber
 	 */
 	void mapCallback(const nav_msgs::OccupancyGrid::Ptr &);
@@ -267,7 +272,8 @@ private:
 	ros::Publisher path_pub_;
 
 	// RRT Parameters
-	Tree tree_;
+	Tree treeInit_;
+	Tree treeGoal_;
 	bool showPlanning_;
 	int K_;
 	float timestep_;
