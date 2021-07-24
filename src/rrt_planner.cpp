@@ -206,6 +206,10 @@ void RRTPlanner::plan()
 			// ROS_INFO("Dist to goal: %0.2f", distToGoal);
 
 			if (distToGoal < 0.5*(velMax_ * timestep_) && checkCollisionFree(x_new, goal_)) {
+				// Add goal to tree
+				int nearestIndex = tree_.findNearest(goal_);
+				tree_.addPoint(goal_, nearestIndex);
+
 				planSuccessful = true;
 				ROS_INFO("Reached!");
 				break;
