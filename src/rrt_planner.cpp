@@ -265,27 +265,29 @@ void RRTPlanner::publishPath()
 	displayMapImage();
 }
 
-bool RRTPlanner::isPointUnoccupied(const Point2D & p)
+bool RRTPlanner::isPointUnoccupied(const cv::Point & pt)
 {
-	// TODO: Fill out this function to check if a given point is occupied/free in the map
-
-	// Convert Point2D to grid location
-	Point2D shifted = p - mapOrigin_;
-	int x = round(shifted[0] / map_grid_->info.resolution);
-	int y = round(shifted[1] / map_grid_->info.resolution);
-
-	ROS_DEBUG("(%0.1f, %0.1f) -> (%d,%d)", p[0],p[1], x,y);
-
-	if (x < 0 || x > map_grid_->info.width || y < 0 || y > map_grid_->info.height) {
+	if (pt.x < 0 || pt.x > map_grid_->info.width || pt.y < 0 || pt.y > map_grid_->info.height) {
 		ROS_WARN("Grid indices exceed grid");
 		return false;
 	}
 
 	// Check map
-	int mapGridIndex = x + y * map_grid_->info.width;
-	bool occupied = (map_grid_->data[mapGridIndex] > occupiedThreshold_);
+	bool occupied = (map_grid_->data[toIndex(pt.x, pt.y)] > occupiedThreshold_);
 
 	return !occupied;
+}
+
+bool RRTPlanner::isPointUnoccupied(const Point2D & p)
+{
+	// TODO: Fill out this function to check if a given point is occupied/free in the map
+
+	// Convert Point2D to grid location
+	cv::Point pt = rosToCVPoint(p);
+
+	// ROS_DEBUG("(%0.1f, %0.1f) -> (%d,%d)", p[0],p[1], pt.x,pt.y);
+
+	return isPointUnoccupied(pt);
 }
 
 void RRTPlanner::buildMapImage()
@@ -317,28 +319,19 @@ void RRTPlanner::displayMapImage(int delay)
 
 void RRTPlanner::drawCircle(Point2D & p, int radius, const cv::Scalar & color)
 {
-	// Convert from ROS ENU			x: right, 	y: up
-	// to CV's coordinate frame		x: right, 	y: down
-	Point2D shifted = (p - mapOrigin_) / map_grid_->info.resolution;
-	cv::circle(
-		*map_,
-		cv::Point(shifted[0],
-				  map_grid_->info.height - shifted[1] - 1),
-		radius,
-		color,
-		-1);
+	cv::circle(*map_,
+			   rosToCVPoint(p),
+			   radius,
+			   color,
+			   -1);
 }
 
 void RRTPlanner::drawLine(Point2D & p1, Point2D & p2, const cv::Scalar & color, int thickness)
 {
-	// Convert from ROS ENU			x: right, 	y: up
-	// to CV's coordinate frame		x: right, 	y: down
-	Point2D shifted1 = (p1 - mapOrigin_) / map_grid_->info.resolution;
-	Point2D shifted2 = (p2 - mapOrigin_) / map_grid_->info.resolution;
 	cv::line(
 		*map_,
-		cv::Point(shifted2[0], map_grid_->info.height - shifted2[1] - 1),
-		cv::Point(shifted1[0], map_grid_->info.height - shifted1[1] - 1),
+		rosToCVPoint(p1),
+		rosToCVPoint(p2),
 		color,
 		thickness);
 }
@@ -357,6 +350,12 @@ inline void RRTPlanner::poseToPoint(Point2D & p, const geometry_msgs::Pose & pos
 {
 	p[0] = pose.position.x;
 	p[1] = pose.position.y;
+}
+
+inline cv::Point RRTPlanner::rosToCVPoint(Point2D p)
+{
+	Point2D shifted = (p - mapOrigin_) / map_grid_->info.resolution;
+	return cv::Point(shifted[0], map_grid_->info.height - shifted[1] - 1);
 }
 
 inline int RRTPlanner::toIndex(int x, int y)
