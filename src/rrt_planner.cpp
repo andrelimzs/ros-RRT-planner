@@ -158,25 +158,37 @@ void RRTPlanner::plan()
 
 	// Reset tree
 	treeInit_.reset(K_);
+	treeGoal_.reset(K_);
 
 	// Add initial pose to tree
 	treeInit_.addPoint(init_pose_);
+	treeGoal_.addPoint(goal_);
 	ROS_INFO("init_pose_: (%0.2f, %0.2f)", init_pose_[0], init_pose_[1]);
 	ROS_INFO("goal_: (%0.2f, %0.2f)", goal_[0], goal_[1]);
 
 	// Iterate to get K vertices
-	int k = 0;
-	while (k < K_) {
+	int kInit = 0;
+	int kGoal = 0;
+	while (kInit < K_ && kGoal < K_) {
 		bool pathValid;
-		planSuccessful = generateRRT(&treeInit_, goal_, &pathValid);
 
-		if (pathValid) { k++; }
+		// Alternate between tree at init and tree at goal
+		if (kInit < kGoal) {
+			planSuccessful = generateRRT(&treeInit_, goal_, &pathValid);
+			if (pathValid) { kInit++; }
+		} else {
+			planSuccessful = generateRRT(&treeGoal_, init_pose_, &pathValid);
+			if (pathValid) { kGoal++; }
+		}
+
 		if (planSuccessful) { break; }
 	}
 
 	if (planSuccessful) {
 		// Retrieve path from tree
 		std::vector<Point2D> path = treeInit_.findPath();
+		std::vector<Point2D> path2 = treeGoal_.findPath();
+		path.insert(path.end(), path2.begin(), path2.begin());
 
 		// Publish
 		publishPath(path);
