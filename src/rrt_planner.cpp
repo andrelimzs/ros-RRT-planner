@@ -92,7 +92,7 @@ void RRTPlanner::initPoseCallback(const geometry_msgs::PoseWithCovarianceStamped
 		buildMapImage();
 	}
 
-	// Convert mas to Point2D
+	// Convert msg to Point2D
 	poseToPoint(init_pose_, msg->pose.pose);
 
 	// Reject the initial pose if the given point is occupied in the map
@@ -200,6 +200,8 @@ Point2D RRTPlanner::randomState()
 
 bool RRTPlanner::checkCollisionFree(Point2D a, Point2D b)
 {
+	// TODO
+
 	return true;
 }
 
@@ -231,6 +233,7 @@ void RRTPlanner::publishPath()
 
 	// TODO: Fill nav_msgs::Path msg with the path calculated by RRT
 
+
 	// Publish the calculated path
 	path_pub_.publish(path);
 
@@ -242,12 +245,20 @@ bool RRTPlanner::isPointUnoccupied(const Point2D & p)
 	// TODO: Fill out this function to check if a given point is occupied/free in the map
 
 	// Convert Point2D to grid location
-	Point2D shifted = p + mapOrigin_;
-	int x = round(shifted[0] / map_grid_->info.resolution) * map_grid_->info.resolution;
-	int y = round(shifted[1] / map_grid_->info.resolution) * map_grid_->info.resolution;
+	Point2D shifted = p - mapOrigin_;
+	int x = round(shifted[0] / map_grid_->info.resolution);
+	int y = round(shifted[1] / map_grid_->info.resolution);
+
+	ROS_DEBUG("(%0.1f, %0.1f) -> (%d,%d)", p[0],p[1], x,y);
+
+	if (x < 0 || x > map_grid_->info.width || y < 0 || y > map_grid_->info.height) {
+		ROS_WARN("Grid indices exceed grid");
+		return false;
+	}
 
 	// Check map
-	bool occupied = (map_grid_->data[x,y] > occupiedThreshold_);
+	int mapGridIndex = x + y * map_grid_->info.width;
+	bool occupied = (map_grid_->data[mapGridIndex] > occupiedThreshold_);
 
 	return !occupied;
 }
@@ -280,9 +291,13 @@ void RRTPlanner::displayMapImage(int delay)
 
 void RRTPlanner::drawCircle(Point2D & p, int radius, const cv::Scalar & color)
 {
+	// Convert from ROS ENU			x: right, 	y: up
+	// to CV's coordinate frame		x: right, 	y: down
+	Point2D shifted = (p - mapOrigin_) / map_grid_->info.resolution;
 	cv::circle(
 		*map_,
-		cv::Point(p[1], map_grid_->info.height - p[0] - 1),
+		cv::Point(shifted[0],
+				  map_grid_->info.height - shifted[1] - 1),
 		radius,
 		color,
 		-1);
@@ -290,10 +305,14 @@ void RRTPlanner::drawCircle(Point2D & p, int radius, const cv::Scalar & color)
 
 void RRTPlanner::drawLine(Point2D & p1, Point2D & p2, const cv::Scalar & color, int thickness)
 {
+	// Convert from ROS ENU			x: right, 	y: up
+	// to CV's coordinate frame		x: right, 	y: down
+	Point2D shifted1 = (p1 - mapOrigin_) / map_grid_->info.resolution;
+	Point2D shifted2 = (p2 - mapOrigin_) / map_grid_->info.resolution;
 	cv::line(
 		*map_,
-		cv::Point(p2[1], map_grid_->info.height - p2[0] - 1),
-		cv::Point(p1[1], map_grid_->info.height - p1[0] - 1),
+		cv::Point(shifted2[0], map_grid_->info.height - shifted2[1] - 1),
+		cv::Point(shifted1[0], map_grid_->info.height - shifted1[1] - 1),
 		color,
 		thickness);
 }
@@ -301,8 +320,8 @@ void RRTPlanner::drawLine(Point2D & p1, Point2D & p2, const cv::Scalar & color, 
 inline geometry_msgs::PoseStamped RRTPlanner::pointToPose(const Point2D & p)
 {
 	geometry_msgs::PoseStamped pose;
-	pose.pose.position.x = p[1] * map_grid_->info.resolution;
-	pose.pose.position.y = p[0] * map_grid_->info.resolution;
+	pose.pose.position.x = p[1];
+	pose.pose.position.y = p[0];
 	pose.header.stamp = ros::Time::now();
 	pose.header.frame_id = map_grid_->header.frame_id;
 	return pose;
@@ -310,8 +329,8 @@ inline geometry_msgs::PoseStamped RRTPlanner::pointToPose(const Point2D & p)
 
 inline void RRTPlanner::poseToPoint(Point2D & p, const geometry_msgs::Pose & pose)
 {
-	p[0] = (pose.position.y / map_grid_->info.resolution);
-	p[1] = (pose.position.x / map_grid_->info.resolution);
+	p[0] = pose.position.x;
+	p[1] = pose.position.y;
 }
 
 inline int RRTPlanner::toIndex(int x, int y)

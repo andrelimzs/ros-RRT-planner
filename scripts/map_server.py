@@ -21,11 +21,14 @@ def map_server(filename):
 
     # Read map
     map_img = cv2.imread(filename, 0)
+    # Flip image because OccupancyGrid is row-major from (0,0)
+    map_img = cv2.flip(map_img, 1)
 
-    # Normalise
-    map_img = (map_img/255*100)
+    # Normalise and invert (0 is free space, 100 is occupied)
+    map_img = (100 - map_img/255*100)
     # OccupancyGrid is int8
     map_img = map_img.astype(np.int8)
+    
 
     # [DEBUG]
     # cv2.imshow("Map", map_img)
