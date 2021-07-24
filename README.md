@@ -55,3 +55,11 @@ The goal location to navigate towards
 #### Published Topics
 - `/path` ([nav_msgs/Path](http://docs.ros.org/en/noetic/api/nav_msgs/html/msg/Path.html)) <br />
 A series of `Pose`s which represent the planned path
+
+
+## Create New Maps
+Run 
+```
+scripts/create_map.py
+```
+to launch a openCV window where you can draw obstacles using the mouse. Press `s` to save the map as `resources/new_map.png`

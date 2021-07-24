@@ -9,7 +9,7 @@ RRT_show_planning: true
 # Number of vertices to explore
 RRT_K: 10000
 # Timestep between vertices
-RRT_timestep: 1.0
+RRT_timestep: 0.2
 # Velocity limit (limits how far each vertex can explore)
 RRT_vel_max: 5
 # Threshold to treat occupancy grid as occupied
