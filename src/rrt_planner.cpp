@@ -283,29 +283,27 @@ void RRTPlanner::publishPath()
 	displayMapImage();
 }
 
-bool RRTPlanner::isPointUnoccupied(const cv::Point & pt)
-{
-	if (pt.x < 0 || pt.x > map_grid_->info.width || pt.y < 0 || pt.y > map_grid_->info.height) {
-		ROS_WARN("Grid indices exceed grid");
-		return false;
-	}
-
-	// Check map
-	bool occupied = (map_grid_->data[toIndex(pt.x, pt.y)] > occupiedThreshold_);
-
-	return !occupied;
-}
-
 bool RRTPlanner::isPointUnoccupied(const Point2D & p)
 {
 	// TODO: Fill out this function to check if a given point is occupied/free in the map
 
 	// Convert Point2D to grid location
-	cv::Point pt = rosToCVPoint(p);
+	Point2D shifted = p - mapOrigin_;
+	shifted[0] = round(shifted[0] / map_grid_->info.resolution);
+	shifted[1] = round(shifted[1] / map_grid_->info.resolution);
 
-	// ROS_DEBUG("(%0.1f, %0.1f) -> (%d,%d)", p[0],p[1], pt.x,pt.y);
+	ROS_INFO("(%0.1f, %0.1f) -> (%d,%d)", p[0],p[1], shifted[0],shifted[1]);
 
-	return isPointUnoccupied(pt);
+	if (shifted[0] < 0 || shifted[0] > map_grid_->info.width
+		|| shifted[1] < 0 || shifted[1] > map_grid_->info.height) {
+		ROS_WARN("Grid indices exceed grid");
+		return false;
+	}
+
+	// Check map
+	bool occupied = (map_grid_->data[toIndex(shifted)] > occupiedThreshold_);
+
+	return !occupied;
 }
 
 void RRTPlanner::buildMapImage()
