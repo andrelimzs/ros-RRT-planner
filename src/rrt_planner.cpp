@@ -26,7 +26,6 @@ RRTPlanner::RRTPlanner(ros::NodeHandle * node)
 	ROS_INFO("Parameters loaded | K=%d, timestep=%0.1f, vel_max=%0.1f, goal bias=%0.1f", K_, timestep_, velMax_, goalBias_);
 
 	// Initialize tree
-	tree_.reset(K_);
 	generator = std::default_random_engine (std::chrono::system_clock::now().time_since_epoch().count());
 
 	// Subscribe to map topic
@@ -158,70 +157,40 @@ void RRTPlanner::plan()
 	//       path through the map starting from the initial pose and ending at the goal pose
 
 	// Reset tree
-	tree_.reset(K_);
+	treeInit_.reset(K_);
+	treeGoal_.reset(K_);
 
 	// Add initial pose to tree
-	tree_.addPoint(init_pose_);
+	treeInit_.addPoint(init_pose_);
+	treeGoal_.addPoint(goal_);
 	ROS_INFO("init_pose_: (%0.2f, %0.2f)", init_pose_[0], init_pose_[1]);
 	ROS_INFO("goal_: (%0.2f, %0.2f)", goal_[0], goal_[1]);
 
 	// Iterate to get K vertices
-	int k = 0;
-	while (k < K_) {
-	// for (int k = 0; k < K_; k++) {
-		// Find random state
-		Point2D x_rand = randomState();
-		// ROS_INFO("x_rand: (%0.2f, %0.2f)", x_rand[0], x_rand[1]);
-
-		// Find nearest neighbour to random state
-		int nearestIndex = tree_.findNearest(x_rand);
-		// ROS_INFO("nearestIndex: %d", nearestIndex);
-		Point2D nearestNeighbour = tree_.retrieve(nearestIndex);
-		// ROS_INFO("nearestNeighbour: (%0.2f, %0.2f)", nearestNeighbour[0], nearestNeighbour[1]);
-
-		// Find control input and new state
-		Point2D u = selectControlInput(nearestNeighbour, x_rand);
-		// ROS_INFO("u: (%0.2f, %0.2f)", u[0], u[1]);
-		Point2D x_new = computeNewState(nearestNeighbour, x_rand, u);
-		// ROS_INFO("x_new: (%0.2f, %0.2f)", x_new[0], x_new[1]);
-
-		// Select input to get to random state
-		// In simple (x,y) state case, draw a line between and check for intersections
-		bool pathValid = checkCollisionFree(x_new, nearestNeighbour);
-
-		// Add vertex & edge to tree
-		// Assume quadcopter is holomonic, therefore use x_rand instead of x_new
-		if (pathValid) {
-			tree_.addPoint(x_new, nearestIndex);
-
-			if (showPlanning_) {
-				drawLine(nearestNeighbour, x_new, cv::Scalar(255, 12, 12), 1);
-				drawCircle(x_new, 2, cv::Scalar(12, 12, 255));
-				displayMapImage();
-			}
-
-			// Check if reached goal
-			float distToGoal = (goal_ - x_new).norm();
-
-			// [DEBUG]
-			// ROS_INFO("Dist to goal: %0.2f", distToGoal);
-
-			if (distToGoal < 0.5*(velMax_ * timestep_) && checkCollisionFree(x_new, goal_)) {
-				// Add goal to tree
-				int nearestIndex = tree_.findNearest(goal_);
-				tree_.addPoint(goal_, nearestIndex);
-
-				planSuccessful = true;
-				ROS_INFO("Reached!");
-				break;
-			}
-			k++;
+	int kInit = 0;
+	int kGoal = 0;
+	Point2D xLastInit = init_pose_;
+	Point2D xLastGoal = goal_;
+	while (kInit < K_ && kGoal < K_) {
+		bool pathValid;
+		// Alternate between tree at init and tree at goal
+		if (kInit < kGoal) {
+			planSuccessful = generateRRT(&treeInit_, xLastGoal, &pathValid, &xLastInit);
+			if (pathValid) { kInit++; }
+		} else {
+			planSuccessful = generateRRT(&treeGoal_, xLastInit, &pathValid, &xLastGoal);
+			if (pathValid) { kGoal++; }
 		}
+
+		if (planSuccessful) { break; }
 	}
 
 	if (planSuccessful) {
 		// Retrieve path from tree
-		std::vector<Point2D> path = tree_.findPath();
+		std::vector<Point2D> path = treeInit_.findPath();
+		std::vector<Point2D> path2 = treeGoal_.findPath();
+		std::reverse(path2.begin(), path2.end());
+		path.insert(path.end(), path2.begin(), path2.end());
 
 		// Publish
 		publishPath(path);
@@ -235,14 +204,60 @@ void RRTPlanner::plan()
 	}
 }
 
-Point2D RRTPlanner::randomState()
+bool RRTPlanner::generateRRT(Tree *tree, Point2D target, bool *pathValid, Point2D *x_last)
+{
+	// Find random state
+	Point2D x_rand = randomState(target);
+
+	// Find nearest neighbour to random state
+	int nearestIndex = tree->findNearest(x_rand);
+	Point2D nearestNeighbour = tree->retrieve(nearestIndex);
+
+	// Find control input and new state
+	Point2D u = selectControlInput(nearestNeighbour, x_rand);
+	Point2D x_new = computeNewState(nearestNeighbour, x_rand, u);
+
+	// Select input to get to random state
+	// In simple (x,y) state case, draw a line between and check for intersections
+	*pathValid = checkCollisionFree(x_new, nearestNeighbour);
+
+	// Add vertex & edge to tree
+	// Assume quadcopter is holomonic, therefore use x_rand instead of x_new
+	if (*pathValid) {
+		tree->addPoint(x_new, nearestIndex);
+
+		if (showPlanning_) {
+			drawLine(nearestNeighbour, x_new, cv::Scalar(255, 12, 12), 1);
+			drawCircle(x_new, 2, cv::Scalar(12, 12, 255));
+			displayMapImage();
+		}
+
+		// Check if reached goal
+		float distToGoal = (target - x_new).norm();
+		if (distToGoal < 0.5*(velMax_ * timestep_) && checkCollisionFree(x_new, target)) {
+			// Add goal to tree
+			int nearestIndex = tree->findNearest(target);
+			tree->addPoint(target, nearestIndex);
+
+			ROS_INFO("Reached!");
+			return true;
+		}
+
+		// Update x_last for other tree
+		*x_last = x_new;
+	}
+
+	return false;
+}
+
+Point2D RRTPlanner::randomState(Point2D target)
 {
 	// Add bias toward goal
 	std::uniform_real_distribution<float> distributionGoalBias(0, 1);
 	float setAsGoal = distributionGoalBias(generator);
 
 	if (setAsGoal <= goalBias_) {
-		return goal_;
+		return target;
 	} else {
 		// Generate random state within map boundaries
 		std::uniform_real_distribution<float> distributionX(xLimitLower_, xLimitUpper_);
