@@ -3,6 +3,8 @@
 
 #include <random>
 #include <iostream>
+#include <vector>
+#include <math.h>
 
 #include <ros/ros.h>
 #include <nav_msgs/OccupancyGrid.h>
@@ -12,41 +14,107 @@
 
 #include <opencv2/opencv.hpp>
 
+#include <Eigen/Eigen>
+#include <Eigen/Dense>
+#include <Eigen/Geometry>
+#include <Eigen/Eigenvalues>
+
+#include <random>
+
 namespace rrt_planner
 {
 
 /**
  * A utility class to represent a 2D point
  */
-class Point2D
+typedef Eigen::Vector2d Point2D;
+
+/**
+ * Utility class to represent a (simplified) tree
+ * Vertices can be added but not removed
+ * Each vertex will be added with an edge at the same time
+ */
+class Tree
 {
 public:
-	Point2D(): x_(0), y_(0) {}
-	Point2D(int x, int y): x_(x), y_(y) {}
-
-	int x() const
-	{
-		return x_;
+	void reset(int size) {
+		adj_.resize(size+1, size+1);
+		adj_ = Eigen::MatrixXi::Zero(size+1, size+1);
+		points.clear();
 	}
 
-	int y() const
-	{
-		return y_;
+	float computeDistance(Point2D a, Point2D b) {
+		return (a-b).norm();
 	}
 
-	void x(int x)
-	{
-		x_ = x;
+	int findNearest(Point2D newPoint) {
+		// Find the nearest neighbour (in Euclidean distance)
+		float minDist = 1e9;
+		int minIndex = -1;
+		for(int i = 0; i < points.size(); i++) {
+			float newDist = computeDistance(newPoint, points[i]);
+			if (newDist < minDist) {
+				minDist = newDist;
+				minIndex = i;
+			}
+		}
+
+		if (minIndex < 0) { throw std::runtime_error("Tree findNearest failed to find a solution"); }
+
+		return minIndex;
 	}
 
-	void y(int y)
-	{
-		y_ = y;
+	void addPoint(Point2D newPoint) {
+		// Store (x,y)
+		points.push_back(newPoint);
+	}
+
+	void addPoint(Point2D newPoint, int nearIndex) {
+		// Store (x,y)
+		points.push_back(newPoint);
+
+		// Add edge
+		int newIndex = points.size() - 1;
+
+		adj_(newIndex, nearIndex) = 1;
+		adj_(nearIndex, newIndex) = 1;
+	}
+
+	Point2D retrieve(int index) {
+		return points[index];
+	}
+
+	int findParent(int index) {
+		for (int i = 0; i < points.size(); i++) {
+			if (adj_(i, index) == 1) {
+				return i;
+			}
+		}
+		
+		throw std::runtime_error("Tree | Node has no parent");
+	}
+
+	std::vector<Point2D> findPath() {
+		// Find path from root (first node) to goal (last node)
+		std::vector<Point2D> path;
+		int index = points.size() - 1;
+
+		// Each node in a tree only has one parent, loop through to find the path
+		while (index != 0) {
+			path.push_back(points[index]);
+			index = findParent(index);
+		}
+
+		// Reverse vector to get origin -> goal
+		std::reverse(path.begin(), path.end());
+
+		return path;
+
 	}
 
 private:
-	int x_;
-	int y_;
+	Eigen::MatrixXi adj_;
+	std::vector<Point2D> points;
 };
 
 
@@ -91,7 +159,7 @@ private:
 	 *
 	 * THE CANDIDATE IS REQUIRED TO IMPLEMENT THE LOGIC IN THIS FUNCTION
 	 */
-	void publishPath();
+	void publishPath(std::vector<Point2D>);
 
 	/**
 	 * Utility function to check if a given point is free/occupied in the map
@@ -147,9 +215,38 @@ private:
 	inline void poseToPoint(Point2D &, const geometry_msgs::Pose &);
 
 	/**
+	 * Utility functions to convert point between ROS coordinates and CV coordinates
+	 */
+	inline cv::Point rosToCVPoint(Point2D p);
+	inline Point2D CVToRosPoint(cv::Point p);
+
+	/**
 	 * Utility function to convert (x, y) matrix coordinate to corresponding vector coordinate
 	 */
 	inline int toIndex(int, int);
+	inline int toIndex(Point2D p);
+
+	/**
+	 * Generate a random state
+	 */
+	Point2D randomState();
+
+	/**
+	 * Check for collisions between two points
+	 */
+	bool checkCollisionFree(Point2D, Point2D);
+
+	/**
+	 * Generate control input, u from two points
+	 * (This will be useful when generalizing RRT to higher dimensions)
+	 */
+	Point2D selectControlInput(Point2D, Point2D);
+
+	/**
+	 * Calculate new state from a initial point and control input
+	 * (This will be useful when generalizing RRT to higher dimensions)
+	 */
+	Point2D computeNewState(Point2D, Point2D, Point2D);
 
 	ros::NodeHandle * nh_;
 	ros::NodeHandle private_nh_;
@@ -168,6 +265,25 @@ private:
 	ros::Subscriber init_pose_sub_;
 	ros::Subscriber goal_sub_;
 	ros::Publisher path_pub_;
+
+	// RRT Parameters
+	Tree tree_;
+	bool showPlanning_;
+	int K_;
+	float timestep_;
+	float velMax_;
+	int occupiedThreshold_;
+	float goalBias_;
+
+	float xLimitLower_;
+	float xLimitUpper_;
+	float yLimitLower_;
+	float yLimitUpper_;
+
+	Point2D mapOrigin_;
+
+	std::random_device r;
+	std::default_random_engine generator;
 };
 
 }

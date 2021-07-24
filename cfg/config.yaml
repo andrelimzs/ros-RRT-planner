@@ -2,3 +2,17 @@ map_topic: '/map'
 path_topic: '/path'
 
 # Add more parameters here to make the RRT algorithm tunable
+
+# Show node & edges during planning
+RRT_show_planning: true
+
+# Number of vertices to explore
+RRT_K: 10000
+# Timestep between vertices
+RRT_timestep: 1.0
+# Velocity limit (limits how far each vertex can explore)
+RRT_vel_max: 5
+# Threshold to treat occupancy grid as occupied
+RRT_occupied_threshold: 90
+# Bias to select goal as the next random state
+RRT_goal_bias: 0.1

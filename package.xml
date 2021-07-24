@@ -12,6 +12,7 @@
   <depend>nav_msgs</depend>
   <depend>geometry_msgs</depend>
   <depend>roscpp</depend>
+  <depend>Eigen</depend>
 
   <export>
   </export>

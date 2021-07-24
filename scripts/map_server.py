@@ -13,7 +13,7 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 
-def map_server(filename):
+def map_server(filename, config):
     pub = rospy.Publisher('map', OccupancyGrid, queue_size=1, latch=True)
     rospy.init_node('map_server', anonymous=False)
 
@@ -21,28 +21,36 @@ def map_server(filename):
 
     # Read map
     map_img = cv2.imread(filename, 0)
+    # Flip image because OccupancyGrid is row-major from (0,0)
+    map_img = cv2.flip(map_img, 1)
 
-    # Normalise
+    # Normalise and invert (0 is free space, 100 is occupied)
     map_img = (100 - map_img/255*100)
     # OccupancyGrid is int8
     map_img = map_img.astype(np.int8)
+    
 
     # [DEBUG]
     # cv2.imshow("Map", map_img)
     # cv2.waitKey(0)
 
     map = OccupancyGrid()
+    map.header.frame_id = "map"
     map.info.map_load_time = rospy.get_rostime()
     # Placeholder resolution
-    map.info.resolution = 0.1 
+    map.info.resolution = config['resolution']
     map.info.width = map_img.shape[0]
     map.info.height = map_img.shape[1]
     # Center map on origin
-    map.info.origin.position.x = map.info.width * map.info.resolution / 2
-    map.info.origin.position.y = map.info.height * map.info.resolution / 2
+    map.info.origin.position.x = config['origin'][0]
+    map.info.origin.position.y = config['origin'][1]
     
     # Flatten because OccupanyGrid data is a 1D array
     map.data = map_img.flatten()
+
+    # Wait until there are subscribers
+    while pub.get_num_connections() < 1:
+        pass
     
     rate = rospy.Rate(1)
     while not rospy.is_shutdown():
@@ -64,6 +72,6 @@ if __name__ == '__main__':
         filename = str((Path(sys.argv[1]).parent / Path(config['image'])).resolve())
 
     try:
-        map_server(filename)
+        map_server(filename, config)
     except rospy.ROSInterruptException:
         pass
