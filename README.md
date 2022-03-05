@@ -1,10 +1,11 @@
-# RRT for Path Planning in ROS
+# ros-RRT-planner
 
 ## Overview
-Rapidly Exploring Random Trees (RRT) algorithm has been implemented to plan collision-free paths in a 2D environment.
 
+The Rapidly Exploring Random Trees (RRT) algorithm, implemented in python and ROS to plan collision-free paths in a 2D environment.
 
 ## Usage
+
 Run the launch file
 
 ```
@@ -32,9 +33,10 @@ Contains parameters for the RRT planner
 - `RRT_occupied_threshold` Threshold to treat occupancy grid as occupied
 - `RRT_goal_bias` Bias to select goal as the next random state
 
-
 ## Nodes
+
 ### map_server.py
+
 Reads an image file and publishes it as an `nav_msgs::OccupancyGrid`
 
 #### Published Topics
@@ -42,6 +44,7 @@ Reads an image file and publishes it as an `nav_msgs::OccupancyGrid`
 An occupancy grid representing the occupied/free space in the surroundings.
 
 ### rrt_planner
+
 A planner decided to efficient search nonconvex spaces by building a random tree. Generates collision free paths to navigate a 2D environment.
 
 #### Subscribed Topics
@@ -56,10 +59,12 @@ The goal location to navigate towards
 - `/path` ([nav_msgs/Path](http://docs.ros.org/en/noetic/api/nav_msgs/html/msg/Path.html)) <br />
 A series of `Pose`s which represent the planned path
 
-
 ## Create New Maps
+
 Run 
 ```
 scripts/create_map.py
 ```
-to launch a openCV window where you can draw obstacles using the mouse. Press `s` to save the map as `resources/new_map.png`
+to launch a openCV window where you can draw obstacles using the mouse.  
+
+Press `s` to save the map as `resources/new_map.png`
