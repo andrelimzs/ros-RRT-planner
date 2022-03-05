@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Rapidly Exploring Random Trees (RRT) algorithm, implemented in python and ROS to plan collision-free paths in a 2D environment.
+The Rapidly Exploring Random Trees (RRT) algorithm, implemented in ROS to plan collision-free paths in a 2D environment.
 
 ## Usage
 
